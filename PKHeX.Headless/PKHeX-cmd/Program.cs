@@ -7,6 +7,9 @@ internal static class Program
     private static class Cmd
     {
         public const string PkhexCmd = "pkhex-cmd";
+        public const string ViewParty = "view-party";
+        public const string CountParty = "count-party";
+        public const string DumpParty = "dump-party";
         public const string CountBoxes = "count-boxes";
         public const string DumpBoxes = "dump-boxes";
         public const string DumpBox = "dump-box";
@@ -31,16 +34,38 @@ internal static class Program
 
             switch (args[0])
             {
+                case Cmd.ViewParty:
+                    if (args.Length < 2)
+                    {
+                        Console.WriteLine($"Usage: {Cmd.PkhexCmd} {Cmd.ViewParty} <filepath>");
+                        return (int)CmdResult.InvalidArgs;
+                    }
+                    CmdSaveUtil.ViewParty(args[1]);
+                    break;
+                case Cmd.CountParty:
+                    if (args.Length < 2)
+                    {
+                        Console.WriteLine($"Usage: {Cmd.PkhexCmd} {Cmd.CountParty} <filepath>");
+                        return (int)CmdResult.InvalidArgs;
+                    }
+                    return CmdSaveUtil.GetPartyCount(args[1]);
+                case Cmd.DumpParty:
+                    if (args.Length < 3)
+                    {
+                        Console.WriteLine($"Usage: {Cmd.PkhexCmd} {Cmd.DumpParty} <filepath> <output path>");
+                        return (int)CmdResult.InvalidArgs;
+                    }
+                    CmdSaveUtil.DumpParty(args[1], args[2]);
+                    break;
                 case Cmd.CountBoxes:
                     if (args.Length < 2)
                     {
                         Console.WriteLine($"Usage: {Cmd.PkhexCmd} {Cmd.CountBoxes} <filepath>");
                         return (int)CmdResult.InvalidArgs;
                     }
-
                     return CmdSaveUtil.GetBoxCount(args[1]);
                 case Cmd.DumpBoxes:
-                    if (args.Length < 2)
+                    if (args.Length < 3)
                     {
                         Console.WriteLine($"Usage: {Cmd.PkhexCmd} {Cmd.DumpBoxes} <filepath> <output path>");
                         return (int)CmdResult.InvalidArgs;
@@ -80,43 +105,11 @@ internal static class Program
     {
         Console.WriteLine($"Usage: {Cmd.PkhexCmd} <command> [options]");
         Console.WriteLine("Commands:");
+        Console.WriteLine($"  {Cmd.ViewParty} <path> View the party PKM in a save file");
+        Console.WriteLine($"  {Cmd.CountParty} <path> Count the number of party PKM in a save file");
+        Console.WriteLine($"  {Cmd.DumpParty} <path> <output path> Dump all party PKM files from a save file to the specified folder");
         Console.WriteLine($"  {Cmd.CountBoxes} <path> Count the number of boxes in a save file");
         Console.WriteLine($"  {Cmd.DumpBoxes} <path> Dump all boxes PK files from a save file to the specified folder");
         Console.WriteLine($"  {Cmd.DumpBox} <box number> <path> Dump specific box PK files from a save file to the specified folder");
-    }
-
-    static void LoadSaveFile(string path)
-    {
-        CmdSaveUtil.LoadSaveFile(path);
-        if (!SaveUtil.TryGetSaveFile(path, out var sav))
-        {
-            Console.WriteLine("Failed to load save file");
-            return;
-        }
-
-        Console.WriteLine($"Loaded {sav.Version} save");
-        Console.WriteLine($"Trainer: {sav.OT}");
-        Console.WriteLine($"TID: {sav.TID16}");
-        Console.WriteLine($"SID: {sav.SID16}");
-        Console.WriteLine($"Playtime: {sav.PlayTimeString}");
-        Console.WriteLine($"Checksums valid: {sav.ChecksumsValid}");
-    }
-
-    static void CheckPKM(string path)
-    {
-        var obj = FileUtil.GetSupportedFile(path);
-        if (obj is not PKM pk)
-        {
-            Console.WriteLine("Failed to load PKM file");
-            return;
-        }
-
-        var la = new LegalityAnalysis(pk);
-        Console.WriteLine($"PKM: {pk.Nickname} ({pk.Species})");
-        Console.WriteLine($"Valid: {la.Valid}");
-        foreach (var result in la.Results)
-        {
-            Console.WriteLine($"{result.Judgement}: {result.Result}");
-        }
     }
 }
