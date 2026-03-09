@@ -58,28 +58,14 @@ namespace PKHeX_cmd.Helpers
         {
             if (LoadSaveFile(filePath) && _currentSave?.HasParty == true)
             {
-                int printed = 0;
-                var sb = new StringBuilder();
-                foreach(var p in _currentSave.PartyData)
+                string jsonString = JsonSerializer.Serialize(_currentSave.PartyData.SelectFacets<PkmDisplayFacet>().ToList(), new JsonSerializerOptions{ WriteIndented = true});
+                if (!string.IsNullOrEmpty(jsonString))
                 {
-                    sb.AppendLine($"PKM Party Slot {printed + 1}:")
-                        .AppendLine($" PKM: {p.FileNameWithoutExtension} Lvl:{p.CurrentLevel}")
-                        .AppendLine($" EXP: {p.EXP}")
-                        .AppendLine($" EVS( HP:{p.EV_HP} ATK:{p.EV_ATK} DEF:{p.EV_DEF} SPA:{p.EV_SPA} SPD:{p.EV_SPD} SPE:{p.EV_SPE})")
-                        .AppendLine($" Trainer: {p.OriginalTrainerName} (ID: {p.ID32})")
-                        .AppendLine("-----------------------------")
-                        ;
-
-                    printed++;
-                }
-
-                if (printed > 0)
-                {
-                    Console.WriteLine(sb.ToString());
+                    Console.WriteLine(jsonString);
                 }
                 else
                 {
-                    Console.WriteLine($"Failed to view PKM from {filePath}");
+                    Console.WriteLine($"Failed to output JSON of PKM from {filePath}");
                 }
             }
         }
