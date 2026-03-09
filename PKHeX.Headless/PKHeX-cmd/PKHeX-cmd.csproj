@@ -12,4 +12,9 @@
       <ProjectReference Include="..\..\PKHeX.Core\PKHeX.Core.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <PackageReference Include="Facet" Version="5.8.2" />
+      <PackageReference Include="Facet.Extensions" Version="5.8.2" />
+    </ItemGroup>
+
 </Project>

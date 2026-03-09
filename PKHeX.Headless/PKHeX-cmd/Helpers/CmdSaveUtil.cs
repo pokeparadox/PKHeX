@@ -1,5 +1,8 @@
 using System.Text;
 using PKHeX.Core;
+using System.Text.Json;
+using Facet.Extensions;
+using PKHeX_cmd.Facets;
 
 namespace PKHeX_cmd.Helpers
 {
@@ -77,6 +80,25 @@ namespace PKHeX_cmd.Helpers
                 else
                 {
                     Console.WriteLine($"Failed to view PKM from {filePath}");
+                }
+            }
+        }
+        /// <summary>
+        /// Loads the save file and prints out all the PK files from the party as a Json object.
+        /// </summary>
+        /// <param name="filePath">The path to the save file to load.</param>
+        public static void JsonParty(string filePath)
+        {
+            if (LoadSaveFile(filePath) && _currentSave?.HasParty == true)
+            {
+                string jsonString = JsonSerializer.Serialize(_currentSave.PartyData.SelectFacets<PkmFacet>().ToList());
+                if (!string.IsNullOrEmpty(jsonString))
+                {
+                    Console.WriteLine(jsonString);
+                }
+                else
+                {
+                    Console.WriteLine($"Failed to output JSON of PKM from {filePath}");
                 }
             }
         }

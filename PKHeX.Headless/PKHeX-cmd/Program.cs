@@ -7,6 +7,7 @@ internal static class Program
     private static class Cmd
     {
         public const string PkhexCmd = "pkhex-cmd";
+        public const string JsonParty = "json-party";
         public const string ViewParty = "view-party";
         public const string CountParty = "count-party";
         public const string DumpParty = "dump-party";
@@ -15,11 +16,11 @@ internal static class Program
         public const string DumpBox = "dump-box";
     }
 
-    public enum CmdResult
+    private enum CmdResult
     {
+        UnknownCommand = -4,
+        InvalidArgs = -1,
         Success = 0,
-        InvalidArgs = 1,
-        UnknownCommand = 4
     }
 
     static int Main(string[] args)
@@ -41,6 +42,14 @@ internal static class Program
                         return (int)CmdResult.InvalidArgs;
                     }
                     CmdSaveUtil.ViewParty(args[1]);
+                    break;
+                case Cmd.JsonParty:
+                    if (args.Length < 2)
+                    {
+                        Console.WriteLine($"Usage: {Cmd.PkhexCmd} {Cmd.JsonParty} <filepath>");
+                        return (int)CmdResult.InvalidArgs;
+                    }
+                    CmdSaveUtil.JsonParty(args[1]);
                     break;
                 case Cmd.CountParty:
                     if (args.Length < 2)
@@ -106,6 +115,7 @@ internal static class Program
         Console.WriteLine($"Usage: {Cmd.PkhexCmd} <command> [options]");
         Console.WriteLine("Commands:");
         Console.WriteLine($"  {Cmd.ViewParty} <path> View the party PKM in a save file");
+        Console.WriteLine($"  {Cmd.JsonParty} <path> Output the party PKM in a save file as JSON");
         Console.WriteLine($"  {Cmd.CountParty} <path> Count the number of party PKM in a save file");
         Console.WriteLine($"  {Cmd.DumpParty} <path> <output path> Dump all party PKM files from a save file to the specified folder");
         Console.WriteLine($"  {Cmd.CountBoxes} <path> Count the number of boxes in a save file");
