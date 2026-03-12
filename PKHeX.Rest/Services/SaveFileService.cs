@@ -17,18 +17,16 @@ namespace PKHeX.Rest.Services
         /// <summary>
         /// Loads a save file hashes and returns the sender the file hash.
         /// The save file is saved to a temp folder with the hash as a filename
-        /// <param name="base64Data">The save data bytes encoded to base64</param>
+        /// <param name="fileBytes">The save data bytes encoded to base64</param>
         /// <param name="cancel">The token allowing cancellation</param>
         /// <returns>The SHA256 hash of the file on success and an empty string on failure</returns>
         /// </summary>
-        public async Task<string> LoadSaveFileHashAsync(string base64Data, CancellationToken cancel = default)
+        public async Task<string> LoadSaveFileAsync(Memory<byte> fileBytes, CancellationToken cancel = default)
         {
-            var fileBytes = Convert.FromBase64String(base64Data);
             // Before commiting to writing the file check it's a valid pkm save
-            Memory<byte> memoryBytes = fileBytes;
-            if (SaveUtil.TryGetSaveFile(memoryBytes, out SaveFile? save) && save.ChecksumsValid)
+            if (SaveUtil.TryGetSaveFile(fileBytes, out SaveFile? save) && save.ChecksumsValid)
             {
-                await using var stream = new MemoryStream(fileBytes);
+                await using var stream = new MemoryStream(fileBytes.ToArray());
                 var hashedBytes = await SHA256.HashDataAsync(stream, cancel).ConfigureAwait(false);
                 // Convert the hashed bytes into a string value
                 string hashString = BitConverter.ToString(hashedBytes).Replace("-", "");

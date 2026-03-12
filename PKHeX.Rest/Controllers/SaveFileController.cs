@@ -9,9 +9,42 @@ namespace PKHeX.Rest.Controllers
     public class SaveFileController(SaveFileService saveFileService) : ControllerBase
     {
         /// <summary>
-        /// Gets the number of party PKM in a save file via the files hash.
-        /// The save should have been loaded previously
+        /// Uploads and loads a PKM save file.
+        /// The save file is validated and stored in a temporary directory with its SHA256 hash as the identifier.
         /// </summary>
+        /// <param name="data">The save file data as bytes</param>
+        /// <param name="cancel">Cancellation token</param>
+        /// <returns>The SHA256 hash of the loaded save file on success</returns>
+        /// <response code="200">Save file successfully loaded. Returns the file hash.</response>
+        /// <response code="400">File data is empty or the file is not a valid PKM save file</response>
+        [HttpPut("save/upload")]
+        [ProducesResponseType<string>(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult<string>> LoadSaveFileAsync(Memory<byte> data, CancellationToken cancel = default)
+        {
+            if (data.IsEmpty)
+            {
+                return BadRequest("File data is required");
+            }
+            var hash = await saveFileService.LoadSaveFileAsync(data, cancel).ConfigureAwait(false);
+            if (string.IsNullOrEmpty(hash))
+            {
+                return BadRequest("Failed to load save file");
+            }
+
+            return Ok(hash);
+        }
+
+
+        /// <summary>
+        /// Gets the number of party PKM in a save file via the file's hash.
+        /// The save file must have been loaded previously via the upload endpoint.
+        /// </summary>
+        /// <param name="fileHash">The SHA256 hash of the save file returned from the upload endpoint</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>The number of PKM currently in the party</returns>
+        /// <response code="200">Successfully retrieved the party count</response>
+        /// <response code="400">The fileHash is missing, invalid, or the save file could not be loaded</response>
         [ProducesResponseType<int>(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [HttpGet("party/count")]
@@ -30,8 +63,15 @@ namespace PKHeX.Rest.Controllers
         }
 
         /// <summary>
-        /// Gets the party data with limited display information.
+        /// Gets the party PKM data with limited display information.
+        /// This endpoint returns summarized PKM data suitable for UI display (name, level, species, etc.).
         /// </summary>
+        /// <param name="fileHash">The SHA256 hash of the save file returned from the upload endpoint</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>A list of party PKM as display facets with limited information</returns>
+        /// <response code="200">Successfully retrieved party display data</response>
+        /// <response code="204">The party is empty</response>
+        /// <response code="400">The fileHash is missing or invalid</response>
         [ProducesResponseType<List<PkmDisplayFacet>>(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -53,8 +93,18 @@ namespace PKHeX.Rest.Controllers
         }
 
         /// <summary>
-        /// Gets the full party data
+        /// Gets the full detailed data for all party PKM.
+        /// This endpoint returns complete PKM data including stats, moves, abilities, and more.
         /// </summary>
+        /// <param name="fileHash">The SHA256 hash of the save file returned from the upload endpoint</param>
+        /// <param name="cancel">Cancellation token</param>
+        /// <returns>A list of party PKM with complete data facets</returns>
+        /// <response code="200">Successfully retrieved party data</response>
+        /// <response code="204">The party is empty</response>
+        /// <response code="400">The fileHash is missing or invalid</response>
+        [ProducesResponseType<List<PkmFacet>>(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [HttpGet("party/data")]
         public async Task<ActionResult<List<PkmFacet>>> GetPartyDataAsync([FromQuery] string fileHash, CancellationToken cancel = default)
         {
@@ -73,8 +123,18 @@ namespace PKHeX.Rest.Controllers
         }
 
         /// <summary>
-        /// Dumps all party PKM to files.
+        /// Dumps all party PKM to individual PKM files.
+        /// Each PKM is saved as a separate file in the temporary directory and identified by its SHA256 hash.
         /// </summary>
+        /// <param name="fileHash">The SHA256 hash of the save file returned from the upload endpoint</param>
+        /// <param name="cancel">Cancellation token</param>
+        /// <returns>A list of SHA256 hashes identifying each dumped PKM file</returns>
+        /// <response code="200">Successfully dumped party PKM. Returns list of file hashes.</response>
+        /// <response code="204">The party is empty, no PKM to dump</response>
+        /// <response code="400">The fileHash is missing or invalid</response>
+        [ProducesResponseType<List<string>>(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [HttpPost("party/dump")]
         public async Task<ActionResult<List<string>>> DumpPartyAsync([FromQuery] string fileHash, CancellationToken cancel = default)
         {
@@ -93,8 +153,16 @@ namespace PKHeX.Rest.Controllers
         }
 
         /// <summary>
-        /// Gets the number of boxes in a save file.
+        /// Gets the total number of boxes in a save file.
+        /// The save file must have been loaded previously via the upload endpoint.
         /// </summary>
+        /// <param name="fileHash">The SHA256 hash of the save file returned from the upload endpoint</param>
+        /// <param name="cancel">Cancellation token</param>
+        /// <returns>The total number of boxes in the save file</returns>
+        /// <response code="200">Successfully retrieved box count</response>
+        /// <response code="400">The fileHash is missing, invalid, or the save file could not be loaded</response>
+        [ProducesResponseType<int>(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [HttpGet("boxes/count")]
         public async Task<ActionResult<int>> GetBoxCountAsync([FromQuery] string fileHash, CancellationToken cancel = default)
         {
@@ -113,8 +181,19 @@ namespace PKHeX.Rest.Controllers
         }
 
         /// <summary>
-        /// Dumps all PKM from all boxes.
+        /// Dumps all PKM from all boxes to individual PKM files.
+        /// Each PKM is saved as a separate file in the temporary PKM directory and identified by its SHA256 hash.
+        /// Files are organised by box in the output structure.
         /// </summary>
+        /// <param name="fileHash">The SHA256 hash of the save file returned from the upload endpoint</param>
+        /// <param name="cancel">Cancellation token</param>
+        /// <returns>A list of lists containing SHA256 hashes for each box's PKM, in order</returns>
+        /// <response code="200">Successfully dumped all boxes. Returns nested list of file hashes by box.</response>
+        /// <response code="204">The save file has no boxes or all boxes are empty</response>
+        /// <response code="400">The fileHash is missing, invalid, or the save file could not be loaded</response>
+        [ProducesResponseType<List<List<string>>>(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [HttpPost("boxes/dump")]
         public async Task<ActionResult<List<List<string>>>> DumpBoxesAsync([FromQuery] string fileHash, CancellationToken cancel = default)
         {
@@ -131,8 +210,19 @@ namespace PKHeX.Rest.Controllers
         }
 
         /// <summary>
-        /// Dumps PKM from a specific box.
+        /// Dumps all PKM from a specific box to individual PKM files.
+        /// Each PKM is saved as a separate file in the temporary PKM directory and identified by its SHA256 hash.
         /// </summary>
+        /// <param name="boxIndex">The zero-based index of the box to dump (0 for the first box, 1 for the second, etc.)</param>
+        /// <param name="fileHash">The SHA256 hash of the save file returned from the upload endpoint</param>
+        /// <param name="cancel">Cancellation token</param>
+        /// <returns>A list of SHA256 hashes identifying each dumped PKM file from the specified box</returns>
+        /// <response code="200">Successfully dumped the box. Returns list of file hashes.</response>
+        /// <response code="204">The specified box is empty or contains no PKM</response>
+        /// <response code="400">The fileHash is missing, invalid, or the boxIndex is out of range</response>
+        [ProducesResponseType<List<string>>(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [HttpPost("boxes/{boxIndex:int}/dump")]
         public async Task<ActionResult<List<string>>> DumpBoxAsync([FromRoute] int boxIndex, [FromQuery] string fileHash, CancellationToken cancel = default)
         {
