@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using PKHeX.Rest.Extensions;
 using PKHeX.Rest.Facets;
 using PKHeX.Rest.Services;
 
@@ -151,6 +152,38 @@ namespace PKHeX.Rest.Controllers
 
             return Ok(hashes);
         }
+
+                /// <summary>
+                /// Gets a specific PKM file by its SHA256 hash.
+                /// The PKM file must have been dumped previously via one of the dump endpoints.
+                /// </summary>
+                /// <param name="pkmHash">The SHA256 hash of the PKM file</param>
+                /// <param name="saveHash">The SHA256 hash of the save file</param>
+                /// <param name="cancel">Cancellation token</param>
+                /// <returns>The PKM file data</returns>
+                /// <response code="200">Successfully retrieved PKM data</response>
+                /// <response code="400">The pkmHash is missing or invalid</response>
+                [ProducesResponseType<byte[]>(StatusCodes.Status200OK)]
+                [ProducesResponseType(StatusCodes.Status400BadRequest)]
+                [HttpGet("pkm/{pkmHash}/{saveHash}")]
+                public async Task<ActionResult<PkmFileInfoFacet?>> GetPkmAsync([FromRoute] string pkmHash, [FromRoute] string saveHash = "", CancellationToken cancel = default)
+                {
+                    if (string.IsNullOrEmpty(pkmHash))
+                    {
+                        return BadRequest("pkmHash is required");
+                    }
+
+                    if ((await saveFileService.GetPkmAsync(pkmHash, saveHash, cancel).ConfigureAwait(false)).TryOut(out var pkmData) && pkmData != null)
+                    {
+                        return Ok(pkmData);
+                    }
+                    else
+                    {
+                        return BadRequest("Failed to retrieve PKM file");
+                    }
+                    return Ok(pkmData);
+                }
+
 
         /// <summary>
         /// Gets the total number of boxes in a save file.
