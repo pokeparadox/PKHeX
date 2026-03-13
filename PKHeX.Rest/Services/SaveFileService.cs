@@ -8,11 +8,11 @@ namespace PKHeX.Rest.Services
 {
     public class SaveFileService
     {
-        private const string DefaultDbPath = "pkmdb";
         private static readonly string TempFolderPath = Path.Combine(Path.GetTempPath(), "pkhex_rest");
-        private static readonly string SavesFolderPath = Path.Combine(TempFolderPath, "saves");
+        private static readonly string BaseFolderPath = Directory.GetCurrentDirectory();
+        private static readonly string SavesFolderPath = Path.Combine(BaseFolderPath, "saves");
         private static readonly string BoxFolderPath = Path.Combine(TempFolderPath, "boxes");
-        private static readonly string PkmFolderPath = Path.Combine(TempFolderPath, "pkm");
+        private static readonly string PkmFolderPath = Path.Combine(BaseFolderPath, "pkm");
 
         /// <summary>
         /// Loads a save file hashes and returns the sender the file hash.
@@ -26,14 +26,11 @@ namespace PKHeX.Rest.Services
             // Before commiting to writing the file check it's a valid pkm save
             if (SaveUtil.TryGetSaveFile(fileBytes, out SaveFile? save) && save.ChecksumsValid)
             {
-                await using var stream = new MemoryStream(fileBytes.ToArray());
-                var hashedBytes = await SHA256.HashDataAsync(stream, cancel).ConfigureAwait(false);
-                // Convert the hashed bytes into a string value
-                string hashString = BitConverter.ToString(hashedBytes).Replace("-", "");
+                string hashString =  await fileBytes.ToArray().HashStringAsync(cancel).ConfigureAwait(false);
                 Directory.CreateDirectory(SavesFolderPath);
-                var tempFilePath = Path.Combine(SavesFolderPath, $"{hashString}.sav");
-                // Write the file to the temp directory
-                await File.WriteAllBytesAsync(tempFilePath, fileBytes, cancel).ConfigureAwait(false);
+                var savesFolder = Path.Combine(SavesFolderPath, $"{hashString}.sav");
+                // Write the file to the saves directory
+                await File.WriteAllBytesAsync(savesFolder, fileBytes, cancel).ConfigureAwait(false);
                 return hashString;
             }
 
@@ -51,8 +48,8 @@ namespace PKHeX.Rest.Services
             return Task.Run(() =>
             {
                 // Check if there is a temp file with the given hash
-                var tempFilePath = Path.Combine(SavesFolderPath, $"{fileHash}.sav");
-                if (File.Exists(tempFilePath) && SaveUtil.TryGetSaveFile(tempFilePath, out SaveFile? save))
+                var saveFolder = Path.Combine(SavesFolderPath, $"{fileHash}.sav");
+                if (File.Exists(saveFolder) && SaveUtil.TryGetSaveFile(saveFolder, out SaveFile? save))
                 {
                     return Task.FromResult<(bool, SaveFile?)>((true, save));
                 }
@@ -61,12 +58,75 @@ namespace PKHeX.Rest.Services
         }
 
         /// <summary>
+        /// Gets the number of party PKM in the server.
+        /// </summary>
+        /// <param name="cancel">The token allowing cancellation</param>
+        /// <returns>the number of server PKM</returns>
+        public Task<int> GetServerPkmCountAsync(CancellationToken cancel = default)
+        {
+            return Task.Run(() =>
+            {
+                if (Directory.Exists(PkmFolderPath))
+                {
+                    var files = Directory.GetFiles(PkmFolderPath, $"*.pk*");
+                    return files.Length;
+                }
+
+                return -1;
+            }, cancel);
+        }
+
+        /// <summary>
+        /// Gets the server data as display facets (limited info).
+        /// </summary>
+        /// <param name="cancel">The token allowing cancellation</param>
+        /// <returns>The list of PKM as summarised data facets of type T</returns>
+        private async Task<List<T>> GetServerPkmAsync<T>(CancellationToken cancel = default) where T : class
+        {
+            if (Directory.Exists(PkmFolderPath))
+            {
+                var files = Directory.GetFiles(PkmFolderPath, $"*.pk*");
+                var output = new List<T>();
+                foreach (var file in files)
+                {
+                    var bytes = await File.ReadAllBytesAsync(file, cancel).ConfigureAwait(false);
+                    if (FileUtil.TryGetPKM(bytes, out PKM? pkm, Path.GetExtension(file)))
+                    {
+                        output.Add(pkm.ToFacet<T>());
+                    }
+                }
+                return output;
+            }
+            return [];
+        }
+
+        /// <summary>
+        /// Gets the server data as display facets (limited info).
+        /// </summary>
+        /// <param name="cancel">The token allowing cancellation</param>
+        /// <returns>The list of PKM as summarised data facets</returns>
+        public Task<List<PkmDisplayFacet>> GetServerPkmDisplayAsync(CancellationToken cancel = default)
+        {
+            return GetServerPkmAsync<PkmDisplayFacet>(cancel);
+        }
+
+        /// <summary>
+        /// Gets the server data as display facets (limited info).
+        /// </summary>
+        /// <param name="cancel">The token allowing cancellation</param>
+        /// <returns>The list of PKM as summarised data facets</returns>
+        public Task<List<PkmFacet>> GetServerPkmDataAsync(CancellationToken cancel = default)
+        {
+            return GetServerPkmAsync<PkmFacet>(cancel);
+        }
+
+        /// <summary>
         /// Gets the number of party PKM in the save file.
         /// </summary>
         /// <param name="fileHash">The SHA256 hash of the PKM save file in the temp folder</param>
         /// <param name="cancel">The token allowing cancellation</param>
         /// <returns>the number of party PKM</returns>
-        public async Task<int> GetPartyCountAsync(string fileHash, CancellationToken cancel = default)
+        public async Task<int> GetPartyPkmCountAsync(string fileHash, CancellationToken cancel = default)
         {
             if ((await TryRetrieveSaveFileAsync(fileHash, cancel).ConfigureAwait(false)).TryOut(out var save) && save?.HasParty == true)
             {
@@ -81,7 +141,7 @@ namespace PKHeX.Rest.Services
         /// <param name="fileHash">The SHA256 hash of the PKM save file in the temp folder</param>
         /// <param name="cancel">The token allowing cancellation</param>
         /// <returns>The list of PKM as summarised data facets</returns>
-        public async Task<List<PkmDisplayFacet>> GetPartyDisplayAsync(string fileHash, CancellationToken cancel = default)
+        public async Task<List<PkmDisplayFacet>> GetPartyPkmDisplayAsync(string fileHash, CancellationToken cancel = default)
         {
             if ((await TryRetrieveSaveFileAsync(fileHash, cancel).ConfigureAwait(false)).TryOut(out var save) && save?.HasParty == true)
             {
@@ -98,7 +158,7 @@ namespace PKHeX.Rest.Services
         /// <param name="fileHash">The SHA256 hash of the PKM save file in the temp folder</param>
         /// <param name="cancel">The token allowing cancellation</param>
         /// <returns>The list of PKM as full data facets</returns>
-        public async Task<List<PkmFacet>> GetPartyDataAsync(string fileHash, CancellationToken cancel = default)
+        public async Task<List<PkmFacet>> GetPartyPkmDataAsync(string fileHash, CancellationToken cancel = default)
         {
             if ((await TryRetrieveSaveFileAsync(fileHash, cancel).ConfigureAwait(false)).TryOut(out var save) && save?.HasParty == true)
             {
@@ -115,7 +175,7 @@ namespace PKHeX.Rest.Services
         /// <param name="fileHash">The SHA256 hash of the PKM save file in the temp folder</param>
         /// <param name="cancel">The token allowing cancellation</param>
         /// <returns>The list of SHA256 hashes relating to the dumped PKM files</returns>
-        public async Task<List<string>> DumpPartyAsync(string fileHash, CancellationToken cancel = default)
+        public async Task<List<string>> DumpPartyPkmAsync(string fileHash, CancellationToken cancel = default)
         {
             if((await TryRetrieveSaveFileAsync(fileHash, cancel).ConfigureAwait(false)).TryOut(out var save) && save?.HasParty == true)
             {
@@ -130,10 +190,7 @@ namespace PKHeX.Rest.Services
                         continue;
 
                     await File.WriteAllBytesAsync(filePath, p.DecryptedPartyData, cancel).ConfigureAwait(false);
-                    // Hash the dumped file and add the hash to the list of dumped files
-                    await using var stream = File.OpenRead(filePath);
-                    var hashedBytes = await SHA256.HashDataAsync(stream, cancel).ConfigureAwait(false);
-                    string hashString = BitConverter.ToString(hashedBytes).Replace("-", "");
+                    string hashString = await p.DecryptedPartyData.HashStringAsync(cancel).ConfigureAwait(false);
                     dumpedFiles.Add(hashString);
                     // Rename the file to use the file hash instead
                     File.Move(filePath, Path.Combine(PkmFolderPath, $"{hashString}.{p.Extension}"));
@@ -179,12 +236,35 @@ namespace PKHeX.Rest.Services
         }
 
         /// <summary>
+        ///  Put a PKM file into the server PKM folder
+        /// </summary>
+        /// <param name="pkmFileData">The file data of the PKM file in a byte array</param>
+        /// <param name="fileName">The filename including the file extension of the PKM file</param>
+        /// <param name="cancel">The token allowing cancellation</param>
+        /// <returns>The PKM file SHA256 hash on success or empty on failure</returns>
+        public async Task<string> SetPkmAsync(Memory<byte> pkmFileData, string fileName, CancellationToken cancel = default)
+        {
+            Directory.CreateDirectory(PkmFolderPath);
+            if (FileUtil.TryGetPKM(pkmFileData, out PKM? pkm, Path.GetExtension(fileName)))
+            {
+                var tempFile = Path.Combine(TempFolderPath, fileName);
+                await File.WriteAllBytesAsync(tempFile, pkmFileData, cancel).ConfigureAwait(false);
+                string hashString = await pkmFileData.ToArray().HashStringAsync(cancel).ConfigureAwait(false);
+                // Move the hashed file from temp to PKM folder
+                File.Move(tempFile, Path.Combine(PkmFolderPath, $"{hashString}{Path.GetExtension(fileName)}"));
+                return hashString;
+            }
+
+            return string.Empty;
+        }
+
+        /// <summary>
         /// Gets the number of boxes in the save file.
         /// </summary>
         /// <param name="fileHash">The SHA256 hash of the PKM save file in the temp folder</param>
         /// <param name="cancel">The token allowing cancellation</param>
         /// <returns>the number boxes in the save</returns>
-        public async Task<int> GetBoxCountAsync(string fileHash, CancellationToken cancel = default)
+        public async Task<int> GetBoxPkmCountAsync(string fileHash, CancellationToken cancel = default)
         {
             if ((await TryRetrieveSaveFileAsync(fileHash, cancel).ConfigureAwait(false)).TryOut(out var save) && save != null)
             {
@@ -217,9 +297,8 @@ namespace PKHeX.Rest.Services
                     var row = new  List<string>();
                     foreach (var p in files)
                     {
-                        await using var stream = File.OpenRead(p);
-                        var hashedBytes = await SHA256.HashDataAsync(stream, cancel).ConfigureAwait(false);
-                        string hashString = BitConverter.ToString(hashedBytes).Replace("-", "");
+                        var dataBytes = await File.ReadAllBytesAsync(p, cancel).ConfigureAwait(false);
+                        string hashString = await dataBytes.HashStringAsync(cancel).ConfigureAwait(false);
                         row.Add(hashString);
                         File.Move(p, Path.Combine(PkmFolderPath, $"{hashString}{Path.GetExtension(p)}"));
                     }
@@ -248,9 +327,8 @@ namespace PKHeX.Rest.Services
                 var box = new List<string>();
                 foreach (var p in files)
                 {
-                    await using var stream = File.OpenRead(p);
-                    var hashedBytes = await SHA256.HashDataAsync(stream, cancel).ConfigureAwait(false);
-                    string hashString = BitConverter.ToString(hashedBytes).Replace("-", "");
+                    var dataBytes = await File.ReadAllBytesAsync(p, cancel).ConfigureAwait(false);
+                    string hashString = await dataBytes.HashStringAsync(cancel).ConfigureAwait(false);
                     box.Add(hashString);
                     File.Move(p, Path.Combine(PkmFolderPath, $"{hashString}{Path.GetExtension(p)}"));
                 }
