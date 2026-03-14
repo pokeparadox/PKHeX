@@ -37,6 +37,49 @@ namespace PKHeX.Rest.Controllers
             return Ok(hash);
         }
 
+        /// <summary>
+        /// List all the seen save files seen by the server with an information overview
+        /// <param name="cancel">The token allowing cancellation</param>
+        /// <returns>The list of SaveFileListingFacet</returns>
+        /// </summary>
+        [HttpGet("save/list")]
+        [ProducesResponseType<List<SaveFileListingFacet>>(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        public async Task<ActionResult<List<SaveFileListingFacet>>> GetSaveFileListingsAsync(CancellationToken cancel = default)
+        {
+            var listings = await saveFileService.GetSaveFileListingsAsync(cancel).ConfigureAwait(false);
+            if (!listings.Any())
+            {
+                return NoContent();
+            }
+
+            return Ok(listings);
+        }
+
+        /// <summary>
+        /// Tries to delete a save file from the saves folder using the given hash.
+        /// <param name="fileHash">The hash of a PKM save file</param>
+        /// <param name="cancel">The token allowing cancellation</param>
+        /// <returns>true if a valid PKM savefile is deleted from the saves folder</returns>
+        /// </summary>
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [HttpPost("save/{fileHash}/delete")]
+        public async Task<ActionResult> DeleteSaveFileAsync([FromRoute] string fileHash, CancellationToken cancel = default)
+        {
+            if(string.IsNullOrEmpty(fileHash))
+            {
+                return BadRequest("fileHash is required");
+            }
+
+            bool deleted = await saveFileService.DeleteSaveFileAsync(fileHash, cancel).ConfigureAwait(false);
+            if (deleted)
+            {
+                return Ok();
+            }
+
+            return BadRequest("Failed to delete save file. It may not exist or an error occurred.");
+        }
 
         /// <summary>
         /// Gets the number of party PKM in a save file via the file's hash.

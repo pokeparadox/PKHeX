@@ -16,8 +16,8 @@ namespace PKHeX.Rest.Services
 
         /// <summary>
         /// Loads a save file hashes and returns the sender the file hash.
-        /// The save file is saved to a temp folder with the hash as a filename
-        /// <param name="fileBytes">The save data bytes encoded to base64</param>
+        /// The save file is saved to the saves folder with the hash as a filename
+        /// <param name="fileBytes">The save data bytes </param>
         /// <param name="cancel">The token allowing cancellation</param>
         /// <returns>The SHA256 hash of the file on success and an empty string on failure</returns>
         /// </summary>
@@ -38,6 +38,34 @@ namespace PKHeX.Rest.Services
         }
 
         /// <summary>
+        /// List all the seen save files seen by the server with an information overview
+        /// <param name="cancel">The token allowing cancellation</param>
+        /// <returns>The list of SaveFileListingFacet</returns>
+        /// </summary>
+        public Task<List<SaveFileListingFacet>> GetSaveFileListingsAsync(CancellationToken cancel = default)
+        {
+            return Task.Run(() =>
+            {
+                if (Directory.Exists(SavesFolderPath))
+                {
+                    var files = Directory.GetFiles(SavesFolderPath, $"*.sav");
+                    var output = new List<SaveFileListingFacet>();
+                    foreach (var file in files)
+                    {
+                        if (SaveUtil.TryGetSaveFile(file, out SaveFile? save))
+                        {
+                            var facet = save.ToFacet<SaveFileListingFacet>();
+                            facet.FileHash = Path.GetFileNameWithoutExtension(file);
+                            facet.DateModified = File.GetLastWriteTime(file);
+                        }
+                    }
+                    return output;
+                }
+                return [];
+            }, cancel);
+        }
+
+        /// <summary>
         /// Tries to retrieve a save file from the temp folder using the given hash.
         /// <param name="fileHash">The hash of a PKM save file</param>
         /// <param name="cancel">The token allowing cancellation</param>
@@ -48,12 +76,34 @@ namespace PKHeX.Rest.Services
             return Task.Run(() =>
             {
                 // Check if there is a temp file with the given hash
-                var saveFolder = Path.Combine(SavesFolderPath, $"{fileHash}.sav");
-                if (File.Exists(saveFolder) && SaveUtil.TryGetSaveFile(saveFolder, out SaveFile? save))
+                var saveFile = Path.Combine(SavesFolderPath, $"{fileHash}.sav");
+                if (File.Exists(saveFile) && SaveUtil.TryGetSaveFile(saveFile, out SaveFile? save))
                 {
                     return Task.FromResult<(bool, SaveFile?)>((true, save));
                 }
                 return Task.FromResult<(bool, SaveFile?)>((false, null));
+            }, cancel);
+        }
+
+
+        /// <summary>
+        /// Tries to delete a save file from the saves folder using the given hash.
+        /// <param name="fileHash">The hash of a PKM save file</param>
+        /// <param name="cancel">The token allowing cancellation</param>
+        /// <returns>true if a valid PKM savefile is deleted from the saves folder</returns>
+        /// </summary>
+        public Task<bool> DeleteSaveFileAsync(string fileHash, CancellationToken cancel = default)
+        {
+            return Task.Run(() =>
+            {
+                var saveFile = Path.Combine(SavesFolderPath, $"{fileHash}.sav");
+                if (File.Exists(saveFile))
+                {
+                    File.Delete(saveFile);
+                    return true;
+                }
+
+                return false;
             }, cancel);
         }
 
@@ -256,6 +306,27 @@ namespace PKHeX.Rest.Services
             }
 
             return string.Empty;
+        }
+
+        /// <summary>
+        ///  Frees a PKM from the server permanently by the file hash, deleting the file from the PKM folder
+        /// </summary>
+        /// <param name="pkmFileHash">The SHA256 hash of the PKM file in the server folder</param>
+        /// <param name="cancel">The token allowing cancellation</param>
+        /// <returns>true when a PKM was freed</returns>
+        public Task<bool> FreePkmAsync(string pkmFileHash, CancellationToken cancel = default)
+        {
+            return Task.Run(() =>
+            {
+                string[] matchingFiles = Directory.GetFiles(PkmFolderPath, $"{pkmFileHash}.pk*");
+                if (matchingFiles.Length > 0)
+                {
+                    string filePath = matchingFiles[0]; // Take the first match
+                    File.Delete(filePath);
+                    return true;
+                }
+                return false;
+            }, cancel);
         }
 
         /// <summary>
