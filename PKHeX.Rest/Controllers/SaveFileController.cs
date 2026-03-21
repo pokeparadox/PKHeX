@@ -21,7 +21,7 @@ namespace PKHeX.Rest.Controllers
         [HttpPut("save/upload")]
         [ProducesResponseType<string>(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<string>> LoadSaveFileAsync([FromBody] byte[] data, CancellationToken cancel = default)
+        public async Task<IActionResult> LoadSaveFileAsync([FromBody] byte[] data, CancellationToken cancel = default)
         {
             Memory<byte> memData = data;
             if (memData.IsEmpty)

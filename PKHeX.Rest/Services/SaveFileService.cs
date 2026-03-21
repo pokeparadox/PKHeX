@@ -57,6 +57,7 @@ namespace PKHeX.Rest.Services
                             var facet = save.ToFacet<SaveFileListingFacet>();
                             facet.FileHash = Path.GetFileNameWithoutExtension(file);
                             facet.DateModified = File.GetLastWriteTime(file);
+                            output.Add(facet);
                         }
                     }
                     return output;
