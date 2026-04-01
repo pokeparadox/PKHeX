@@ -183,8 +183,8 @@ namespace PKHeX.Rest.Controllers
         [ProducesResponseType<List<PkmDisplayFacet>>(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [HttpGet("party/display")]
-        public async Task <ActionResult<List<PkmDisplayFacet>>> GetPartyPkmDisplayAsync([FromQuery] string fileHash, CancellationToken cancellationToken = default)
+        [HttpGet("party/display/{fileHash}")]
+        public async Task <ActionResult<List<PkmDisplayFacet>>> GetPartyPkmDisplayAsync([FromRoute] string fileHash, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(fileHash))
             {
@@ -335,14 +335,14 @@ namespace PKHeX.Rest.Controllers
         [ProducesResponseType<int>(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [HttpGet("boxes/count")]
-        public async Task<ActionResult<int>> GetBoxPkmCountAsync([FromQuery] string fileHash, CancellationToken cancel = default)
+        public async Task<ActionResult<int>> GetBoxesCountAsync([FromQuery] string fileHash, CancellationToken cancel = default)
         {
             if (string.IsNullOrEmpty(fileHash))
             {
                 return BadRequest("fileHash is required");
             }
 
-            int count = await saveFileService.GetBoxPkmCountAsync(fileHash, cancel).ConfigureAwait(false);
+            int count = await saveFileService.GetBoxesCountAsync(fileHash, cancel).ConfigureAwait(false);
             if (count == -1)
             {
                 return BadRequest("Failed to get box count from save file");

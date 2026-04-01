@@ -336,7 +336,7 @@ namespace PKHeX.Rest.Services
         /// <param name="fileHash">The SHA256 hash of the PKM save file in the temp folder</param>
         /// <param name="cancel">The token allowing cancellation</param>
         /// <returns>the number boxes in the save</returns>
-        public async Task<int> GetBoxPkmCountAsync(string fileHash, CancellationToken cancel = default)
+        public async Task<int> GetBoxesCountAsync(string fileHash, CancellationToken cancel = default)
         {
             if ((await TryRetrieveSaveFileAsync(fileHash, cancel).ConfigureAwait(false)).TryOut(out var save) && save != null)
             {
