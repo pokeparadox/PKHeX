@@ -11,10 +11,12 @@
         <PackageReference Include="Facet" Version="5.8.2" />
         <PackageReference Include="Facet.Extensions" Version="5.8.2" />
         <PackageReference Include="Scalar.AspNetCore" Version="2.13.18" />
+        <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\PKHeX.Core\PKHeX.Core.csproj" />
+        <ProjectReference Include="..\PKHeX.Drawing.PokeSprite\PKHeX.Drawing.PokeSprite.csproj" />
     </ItemGroup>
 
 </Project>
