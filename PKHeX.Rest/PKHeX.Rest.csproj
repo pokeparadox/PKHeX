@@ -10,6 +10,7 @@
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.3"/>
         <PackageReference Include="Facet" Version="5.8.2" />
         <PackageReference Include="Facet.Extensions" Version="5.8.2" />
+        <PackageReference Include="Scalar.AspNetCore" Version="2.13.18" />
     </ItemGroup>
 
     <ItemGroup>

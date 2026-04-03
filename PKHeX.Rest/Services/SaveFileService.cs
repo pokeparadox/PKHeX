@@ -240,8 +240,11 @@ namespace PKHeX.Rest.Services
                     if (File.Exists(filePath))
                         continue;
 
-                    await File.WriteAllBytesAsync(filePath, p.DecryptedPartyData, cancel).ConfigureAwait(false);
-                    string hashString = await p.DecryptedPartyData.HashStringAsync(cancel).ConfigureAwait(false);
+                    // Create a buffer for the party data and write the PKM to it
+                    byte[] partyData = new byte[p.SIZE_PARTY];
+                    p.WriteDecryptedDataParty(partyData);
+                    await File.WriteAllBytesAsync(filePath, partyData, cancel).ConfigureAwait(false);
+                    string hashString = await partyData.HashStringAsync(cancel).ConfigureAwait(false);
                     dumpedFiles.Add(hashString);
                     // Rename the file to use the file hash instead
                     File.Move(filePath, Path.Combine(PkmFolderPath, $"{hashString}.{p.Extension}"));

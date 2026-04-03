@@ -9,10 +9,6 @@ namespace PKHeX.Rest.Facets
         nameof(PKM.NicknameTrash),
         nameof(PKM.OriginalTrainerTrash),
         nameof(PKM.HandlingTrainerTrash),
-        nameof(PKM.EncryptedBoxData),
-        nameof(PKM.EncryptedPartyData),
-        nameof(PKM.DecryptedBoxData),
-        nameof(PKM.DecryptedPartyData)
     ])]
     public partial class PkmFacet
     {
