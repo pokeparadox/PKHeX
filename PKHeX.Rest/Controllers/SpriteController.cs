@@ -12,7 +12,7 @@ namespace PKHeX.Rest.Controllers
     {
         // Get the PKM Sprite FileModel from the hash for the PKM
         /// <summary>
-        /// Gets a specific PKM file by its SHA256 hash.
+        /// Gets a specific PKM sprite file by its SHA256 hash.
         /// The PKM file must have been dumped previously via one of the dump endpoints.
         /// </summary>
         /// <param name="pkmHash">The SHA256 hash of the PKM file</param>

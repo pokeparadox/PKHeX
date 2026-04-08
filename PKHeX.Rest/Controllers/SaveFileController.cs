@@ -243,8 +243,8 @@ namespace PKHeX.Rest.Controllers
         [ProducesResponseType<List<string>>(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [HttpPost("party/dump")]
-        public async Task<ActionResult<List<string>>> DumpPartyPkmAsync([FromQuery] string fileHash, CancellationToken cancel = default)
+        [HttpPost("{fileHash}/party/dump")]
+        public async Task<ActionResult<List<string>>> DumpPartyPkmAsync([FromRoute] string fileHash, CancellationToken cancel = default)
         {
             if (string.IsNullOrEmpty(fileHash))
             {
