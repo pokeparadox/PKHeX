@@ -19,18 +19,22 @@ namespace PKHeX.Rest.Services
         /// </summary>
         public async Task<(bool, FileModel?)> TryRetrievePkmSpriteAsync(PKM pkmFile, CancellationToken cancel = default)
         {
-            //public static Bitmap GetSprite(ushort species, byte form, byte gender, uint formarg, int item, bool isegg, Shiny shiny, EntityContext context = EntityContext.None)
-            var bitmap = SpriteUtil.GetSprite(pkmFile.Species, pkmFile.Form, pkmFile.Gender, pkmFile.Form, 0,
+            /*SkiaSharp
+            using (var bmap = new SKBitmap(1, 1, false))
+            using (var img = SKImage.FromBitmap(bmap))
+            using (var bytes = img.Encode(SKEncodedImageFormat.Jpeg, 0)) {
+                return this.File(bytes.ToArray(), "image/jpeg");
+            }
+            */
+
+
+            //public static Image<Rgba32> GetSprite(ushort species, byte form, byte gender, uint formarg, int item, bool isegg, Shiny shiny, EntityContext context = EntityContext.None)
+            var image = SpriteUtil.GetSprite(pkmFile.Species, pkmFile.Form, pkmFile.Gender, pkmFile.Form, 0,
                 pkmFile.IsEgg, pkmFile.IsShiny ? Shiny.Always : Shiny.Never);
             var width = SpriteUtil.Spriter.Width;
             var height = SpriteUtil.Spriter.Height;
-            if ( width > 0 && height > 0 )
+            if (width > 0 && height > 0)
             {
-                // Get raw pixel data from the bitmap
-                var pixelData = bitmap.GetBitmapData();
-
-                // Create ImageSharp image from the raw data
-                using var image = Image.LoadPixelData<Rgba32>(pixelData, width,height);
 
                 // Encode as PNG using ImageSharp
                 using var ms = new MemoryStream();
@@ -50,5 +54,3 @@ namespace PKHeX.Rest.Services
         }
     }
 }
-
-

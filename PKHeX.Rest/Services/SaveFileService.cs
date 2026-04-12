@@ -9,7 +9,7 @@ namespace PKHeX.Rest.Services
     public class SaveFileService
     {
         private static readonly string TempFolderPath = Path.Combine(Path.GetTempPath(), "pkhex_rest");
-        private static readonly string BaseFolderPath = Directory.GetCurrentDirectory();
+        private static readonly string BaseFolderPath = Path.Combine(Directory.GetCurrentDirectory(), "data");
         private static readonly string SavesFolderPath = Path.Combine(BaseFolderPath, "saves");
         private static readonly string BoxFolderPath = Path.Combine(TempFolderPath, "boxes");
         private static readonly string PkmFolderPath = Path.Combine(BaseFolderPath, "pkm");
@@ -232,22 +232,23 @@ namespace PKHeX.Rest.Services
             {
                 Directory.CreateDirectory(PkmFolderPath);
                 List<string> dumpedFiles = new List<string>();
-
                 foreach (var p in save.PartyData)
                 {
                     var fileName = PathUtil.CleanFileName(p.FileName);
                     var filePath = Path.Combine(PkmFolderPath, fileName);
-                    if (File.Exists(filePath))
-                        continue;
-
                     // Create a buffer for the party data and write the PKM to it
                     byte[] partyData = new byte[p.SIZE_PARTY];
                     p.WriteDecryptedDataParty(partyData);
-                    await File.WriteAllBytesAsync(filePath, partyData, cancel).ConfigureAwait(false);
                     string hashString = await partyData.HashStringAsync(cancel).ConfigureAwait(false);
                     dumpedFiles.Add(hashString);
+                    string outputPath = Path.Combine(PkmFolderPath, $"{hashString}.{p.Extension}");
+                    if (File.Exists(outputPath))
+                    {
+                        continue;
+                    }
+                    await File.WriteAllBytesAsync(filePath, partyData, cancel).ConfigureAwait(false);
                     // Rename the file to use the file hash instead
-                    File.Move(filePath, Path.Combine(PkmFolderPath, $"{hashString}.{p.Extension}"));
+                    File.Move(filePath, outputPath);
                 }
 
                 return dumpedFiles;

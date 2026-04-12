@@ -1,6 +1,7 @@
-using System.Drawing;
 using PKHeX.Core;
 using PKHeX.Drawing.PokeSprite.Properties;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace PKHeX.Drawing.PokeSprite;
 
@@ -23,18 +24,18 @@ public sealed class SpriteBuilder5668s : SpriteBuilder
     protected override string GetSpriteAll(ushort species, byte form, byte gender, uint formarg, bool shiny, EntityContext context) => 'b' + SpriteName.GetResourceStringSprite(species, form, gender, formarg, context, shiny);
     protected override string GetSpriteAllSecondary(ushort species, byte form, byte gender, uint formarg, bool shiny, EntityContext context) => 'c' + SpriteName.GetResourceStringSprite(species, form, gender, formarg, context, shiny);
     protected override string GetItemResourceName(int item) => 'b' + $"item_{item}";
-    protected override Bitmap Unknown => Resources.b_unknown;
-    protected override Bitmap GetEggSprite(ushort species) => species == (int)Species.Manaphy ? Resources.b_490_e : Resources.b_egg;
+    protected override Image<Rgba32> Unknown => ResourcesImageSharp.b_unknown;
+    protected override Image<Rgba32> GetEggSprite(ushort species) => species == (int)Species.Manaphy ? ResourcesImageSharp.b_490_e : ResourcesImageSharp.b_egg;
 
-    public override Bitmap Hover { get; } = Resources.slotHover68;
-    public override Bitmap View { get; } = Resources.slotView68;
-    public override Bitmap Set { get; } = Resources.slotSet68;
-    public override Bitmap Delete { get; } = Resources.slotDel68;
-    public override Bitmap Transparent { get; } = Resources.slotTrans68;
-    public override Bitmap Drag => Resources.slotDrag68;
-    public override Bitmap UnknownItem => Resources.bitem_unk;
-    public override Bitmap None { get; } = Resources.b_0;
-    public override Bitmap ItemTM => Resources.bitem_tm;
-    public override Bitmap ItemTR => Resources.bitem_tr;
-    public override Bitmap ShadowLugia => Resources.b_249x;
+    public override Image<Rgba32> Hover { get; } = ResourcesImageSharp.slotHover68;
+    public override Image<Rgba32> View { get; } = ResourcesImageSharp.slotView68;
+    public override Image<Rgba32> Set { get; } = ResourcesImageSharp.slotSet68;
+    public override Image<Rgba32> Delete { get; } = ResourcesImageSharp.slotDel68;
+    public override Image<Rgba32> Transparent { get; } = ResourcesImageSharp.slotTrans68;
+    public override Image<Rgba32> Drag => ResourcesImageSharp.slotDrag68;
+    public override Image<Rgba32> UnknownItem => ResourcesImageSharp.bitem_unk;
+    public override Image<Rgba32> None { get; } = ResourcesImageSharp.b_0;
+    public override Image<Rgba32> ItemTM => ResourcesImageSharp.bitem_tm;
+    public override Image<Rgba32> ItemTR => ResourcesImageSharp.bitem_tr;
+    public override Image<Rgba32> ShadowLugia => ResourcesImageSharp.b_249x;
 }

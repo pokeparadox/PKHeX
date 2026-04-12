@@ -7,10 +7,10 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.3"/>
-        <PackageReference Include="Facet" Version="5.8.2" />
-        <PackageReference Include="Facet.Extensions" Version="5.8.2" />
-        <PackageReference Include="Scalar.AspNetCore" Version="2.13.18" />
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.5" />
+        <PackageReference Include="Facet" Version="6.0.0" />
+        <PackageReference Include="Facet.Extensions" Version="6.0.0" />
+        <PackageReference Include="Scalar.AspNetCore" Version="2.13.20" />
         <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     </ItemGroup>
 

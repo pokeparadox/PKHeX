@@ -31,4 +31,10 @@
     </EmbeddedResource>
   </ItemGroup>
 
+  <ItemGroup>
+    <Reference Include="SixLabors.ImageSharp">
+      <HintPath>..\..\..\..\..\home\kevin\.nuget\packages\sixlabors.imagesharp\3.1.12\lib\net6.0\SixLabors.ImageSharp.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
 </Project>

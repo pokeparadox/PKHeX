@@ -40,7 +40,7 @@ namespace PKHeX.Rest.Controllers
                 }
 
                 // Get the sprite
-                if ((await spriteService.TryRetrievePkmSpriteAsync(pkm, cancel)).TryOut(out var spriteData) && spriteData != null)
+                if ((await spriteService.TryRetrievePkmSpriteAsync(pkm, cancel).ConfigureAwait(false)).TryOut(out var spriteData) && spriteData != null)
                 {
                     return Ok(spriteData);
                 }

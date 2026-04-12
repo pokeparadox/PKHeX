@@ -6,6 +6,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
 builder.Services.AddScoped<SaveFileService>();
+builder.Services.AddScoped<SpriteService>();
 builder.Services.AddControllers(options =>
 {
     options.InputFormatters.Insert(0, new RawRequestBodyFormatter());
