@@ -19,15 +19,6 @@ namespace PKHeX.Rest.Services
         /// </summary>
         public async Task<(bool, FileModel?)> TryRetrievePkmSpriteAsync(PKM pkmFile, CancellationToken cancel = default)
         {
-            /*SkiaSharp
-            using (var bmap = new SKBitmap(1, 1, false))
-            using (var img = SKImage.FromBitmap(bmap))
-            using (var bytes = img.Encode(SKEncodedImageFormat.Jpeg, 0)) {
-                return this.File(bytes.ToArray(), "image/jpeg");
-            }
-            */
-
-
             //public static Image<Rgba32> GetSprite(ushort species, byte form, byte gender, uint formarg, int item, bool isegg, Shiny shiny, EntityContext context = EntityContext.None)
             var image = SpriteUtil.GetSprite(pkmFile.Species, pkmFile.Form, pkmFile.Gender, pkmFile.Form, 0,
                 pkmFile.IsEgg, pkmFile.IsShiny ? Shiny.Always : Shiny.Never);
