@@ -8,11 +8,19 @@ namespace PKHeX.Rest.Services
 {
     public class SaveFileService
     {
+        // The intention is that backups of PKM and Saves will always be taken and stored in the backup folders.
+        // The temp folder holds the current saves box organisation.
+        // There is a permanent general PKM folder for a user to manage.
+        // There is a permanent save folder for the user to manage.
         private static readonly string TempFolderPath = Path.Combine(Path.GetTempPath(), "pkhex_rest");
-        private static readonly string BaseFolderPath = Path.Combine(Directory.GetCurrentDirectory(), "data");
-        private static readonly string SavesFolderPath = Path.Combine(BaseFolderPath, "saves");
         private static readonly string BoxFolderPath = Path.Combine(TempFolderPath, "boxes");
-        private static readonly string PkmFolderPath = Path.Combine(BaseFolderPath, "pkm");
+        private static readonly string BaseDataFolderPath = Path.Combine(Directory.GetCurrentDirectory(), "data");
+        private static readonly string BaseBackupFolderPath = Path.Combine(BaseDataFolderPath, "backup");
+        private static readonly string SavesFolderPath = Path.Combine(BaseDataFolderPath, "saves");
+        private static readonly string SavesBackupFolderPath = Path.Combine(BaseBackupFolderPath, "saves");
+        private static readonly string PkmFolderPath = Path.Combine(BaseDataFolderPath, "pkm");
+        private static readonly string PkmBackupFolderPath = Path.Combine(BaseBackupFolderPath, "pkm");
+
 
         /// <summary>
         /// Loads a save file hashes and returns the sender the file hash.
@@ -28,9 +36,13 @@ namespace PKHeX.Rest.Services
             {
                 string hashString =  await fileBytes.ToArray().HashStringAsync(cancel).ConfigureAwait(false);
                 Directory.CreateDirectory(SavesFolderPath);
-                var savesFolder = Path.Combine(SavesFolderPath, $"{hashString}.sav");
+                string fileName = $"{hashString}.sav";
+                var saveFile = Path.Combine(TempFolderPath, fileName);
                 // Write the file to the saves directory
-                await File.WriteAllBytesAsync(savesFolder, fileBytes, cancel).ConfigureAwait(false);
+                await File.WriteAllBytesAsync(saveFile, fileBytes, cancel).ConfigureAwait(false);
+
+                // Copy the save to the backup save folder if it doesn't exist there already
+                MoveWithBackup(saveFile, Path.Combine(SavesFolderPath, fileName), Path.Combine(SavesBackupFolderPath, fileName));
                 return hashString;
             }
 
@@ -241,14 +253,16 @@ namespace PKHeX.Rest.Services
                     p.WriteDecryptedDataParty(partyData);
                     string hashString = await partyData.HashStringAsync(cancel).ConfigureAwait(false);
                     dumpedFiles.Add(hashString);
-                    string outputPath = Path.Combine(PkmFolderPath, $"{hashString}.{p.Extension}");
+                    string fName = $"{hashString}{Path.GetExtension(fileName)}";
+                    string outputPath = Path.Combine(PkmFolderPath, fName);
                     if (File.Exists(outputPath))
                     {
                         continue;
                     }
                     await File.WriteAllBytesAsync(filePath, partyData, cancel).ConfigureAwait(false);
+
                     // Rename the file to use the file hash instead
-                    File.Move(filePath, outputPath);
+                    MoveWithBackup(filePath, outputPath, Path.Combine(PkmBackupFolderPath, fName));
                 }
 
                 return dumpedFiles;
@@ -306,7 +320,8 @@ namespace PKHeX.Rest.Services
                 await File.WriteAllBytesAsync(tempFile, pkmFileData, cancel).ConfigureAwait(false);
                 string hashString = await pkmFileData.ToArray().HashStringAsync(cancel).ConfigureAwait(false);
                 // Move the hashed file from temp to PKM folder
-                File.Move(tempFile, Path.Combine(PkmFolderPath, $"{hashString}{Path.GetExtension(fileName)}"));
+                string fName = $"{hashString}{Path.GetExtension(fileName)}";
+                MoveWithBackup(tempFile, Path.Combine(PkmFolderPath, fName), Path.Combine(PkmBackupFolderPath, fName));
                 return hashString;
             }
 
@@ -376,7 +391,8 @@ namespace PKHeX.Rest.Services
                         var dataBytes = await File.ReadAllBytesAsync(p, cancel).ConfigureAwait(false);
                         string hashString = await dataBytes.HashStringAsync(cancel).ConfigureAwait(false);
                         row.Add(hashString);
-                        File.Move(p, Path.Combine(PkmFolderPath, $"{hashString}{Path.GetExtension(p)}"));
+                        string fileName = $"{hashString}{Path.GetExtension(p)}";
+                        MoveWithBackup(p, Path.Combine(PkmFolderPath, fileName), Path.Combine(PkmBackupFolderPath, fileName));
                     }
                     output.Add(row);
                 }
@@ -406,12 +422,24 @@ namespace PKHeX.Rest.Services
                     var dataBytes = await File.ReadAllBytesAsync(p, cancel).ConfigureAwait(false);
                     string hashString = await dataBytes.HashStringAsync(cancel).ConfigureAwait(false);
                     box.Add(hashString);
-                    File.Move(p, Path.Combine(PkmFolderPath, $"{hashString}{Path.GetExtension(p)}"));
+                    string fileName = $"{hashString}{Path.GetExtension(p)}";
+                    MoveWithBackup(p, Path.Combine(PkmFolderPath, fileName), Path.Combine(PkmBackupFolderPath, fileName));
                 }
                 return box;
             }
 
             return [];
+        }
+
+        private static void MoveWithBackup(string sourceFilePath, string destinationFilePath, string backupFilePath)
+        {
+            // Rename the file to use the file hash instead
+            File.Move(sourceFilePath, destinationFilePath);
+            // Copy the PKM to the backup PKM folder if it doesn't already exist
+            if (!File.Exists(backupFilePath))
+            {
+                File.Copy(destinationFilePath, backupFilePath);
+            }
         }
     }
 }
