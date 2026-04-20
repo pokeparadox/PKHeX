@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using PKHeX.Core;
 using Facet.Extensions;
 using PKHeX.Rest.Extensions;
@@ -21,6 +20,15 @@ namespace PKHeX.Rest.Services
         private static readonly string PkmFolderPath = Path.Combine(BaseDataFolderPath, "pkm");
         private static readonly string PkmBackupFolderPath = Path.Combine(BaseBackupFolderPath, "pkm");
 
+        /// <summary>
+        /// Represents the possible locations where a PKM can reside
+        /// </summary>
+        public enum PkmLocation
+        {
+            ServerFolder,  // General server PKM folder
+            Party,         // Party data in save file
+            Box            // Box data in save file
+        }
 
         /// <summary>
         /// Loads a save file hashes and returns the sender the file hash.
@@ -290,7 +298,7 @@ namespace PKHeX.Rest.Services
                 string filePath = matchingFiles[0]; // Take the first match
                 Memory<byte> fileData = await File.ReadAllBytesAsync(filePath, cancel).ConfigureAwait(false);
                 (await saveFileTask.ConfigureAwait(false)).TryOut(out var save);
-                if (FileUtil.TryGetPKM(fileData, out PKM? pkm, Path.GetExtension(filePath), save))
+                if (FileUtil.TryGetPKM(fileData, out PKM? _, Path.GetExtension(filePath), save))
                 {
                     return (true, new PkmFileInfoFacet
                     {
@@ -314,7 +322,7 @@ namespace PKHeX.Rest.Services
         public async Task<string> SetPkmAsync(Memory<byte> pkmFileData, string fileName, CancellationToken cancel = default)
         {
             Directory.CreateDirectory(PkmFolderPath);
-            if (FileUtil.TryGetPKM(pkmFileData, out PKM? pkm, Path.GetExtension(fileName)))
+            if (FileUtil.TryGetPKM(pkmFileData, out PKM? _, Path.GetExtension(fileName)))
             {
                 var tempFile = Path.Combine(TempFolderPath, fileName);
                 await File.WriteAllBytesAsync(tempFile, pkmFileData, cancel).ConfigureAwait(false);
@@ -326,6 +334,128 @@ namespace PKHeX.Rest.Services
             }
 
             return string.Empty;
+        }
+
+        /// <summary>
+        /// Moves a PKM from one location to another, identified by its file hash.
+        /// </summary>
+        /// <param name="pkmFileHash">The SHA256 hash of the PKM file</param>
+        /// <param name="saveFileHash">The SHA256 hash of the save file (required for party/box operations)</param>
+        /// <param name="sourceLocation">Where the PKM is currently located</param>
+        /// <param name="destinationLocation">Where to move the PKM</param>
+        /// <param name="destinationIndex">For party/box destinations, the index position to place the PKM</param>
+        /// <param name="destinationBoxIndex">For box destinations, which box to move to</param>
+        /// <param name="withCopy">If true the PKM is left in the source location</param>
+        /// <param name="cancel">The token allowing cancellation</param>
+        /// <returns>true if the move was successful</returns>
+        public async Task<bool> MovePkmAsync(
+            string pkmFileHash,
+            string saveFileHash,
+            PkmLocation sourceLocation,
+            PkmLocation destinationLocation,
+            int destinationIndex = 0,
+            int destinationBoxIndex = 0,
+            bool withCopy = false,
+            CancellationToken cancel = default)
+        {
+            // Retrieve the PKM from source location
+            var (pkmFound, pkmData) = await GetPkmAsync(pkmFileHash, saveFileHash, cancel).ConfigureAwait(false);
+            if (!pkmFound || pkmData?.FileData == null)
+                return false;
+
+            // Retrieve the save file
+            var (saveFound, save) = await TryRetrieveSaveFileAsync(saveFileHash, cancel).ConfigureAwait(false);
+            if (!saveFound || save == null)
+                return false;
+
+            // Load the PKM object
+            if (!FileUtil.TryGetPKM(pkmData.FileData, out PKM? pkm, Path.GetExtension(pkmData.FileName)))
+                return false;
+
+            if (!withCopy)
+            {
+                await FreePkmAsync(pkmFileHash, cancel).ConfigureAwait(false);
+                // We also need to remove from the source of the save file if it's party or box
+                switch (sourceLocation)
+                {
+                    case PkmLocation.Party:
+                        if (save.HasParty)
+                        {
+                            for (int i = 0; i < save.PartyCount; ++i)
+                            {
+                                var chkPk = save.GetPartySlotAtIndex(i);
+                                if(chkPk?.FileName == pkm.FileName)
+                                {
+                                    save.SetPartySlotAtIndex(save.BlankPKM, i);
+                                    break;
+                                }
+                            }
+                        }
+
+                        break;
+                    case PkmLocation.Box:
+                        if (save.BoxData?.Any() == true)
+                        {
+                            for (int b = 0; b < save.BoxCount; ++b)
+                            {
+                                var box = save.GetBoxData(b);
+                                if (box?.Any() == true)
+                                {
+                                    for (int s = 0; s < save.BoxSlotCount; ++s)
+                                    {
+                                        var boxPkm = box[s];
+                                        if (boxPkm != save.BlankPKM && boxPkm.FileName == pkm.FileName)
+                                        {
+                                            box[s] = save.BlankPKM;
+                                            save.SetBoxData(box, b);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        break;
+                }
+            }
+
+            // Handle destination operations
+            switch (destinationLocation)
+            {
+                case PkmLocation.Party:
+                    if (destinationIndex >= 0 && destinationIndex < save.PartyCount)
+                    {
+                        save.PartyData[destinationIndex] = pkm;
+                        return true;
+                    }
+                    break;
+
+                case PkmLocation.Box:
+                    if (destinationBoxIndex >= 0 && destinationBoxIndex < save.BoxCount)
+                    {
+                        var box = save.GetBoxData(destinationBoxIndex);
+                        if (box?.Any() == true)
+                        {
+                            box[destinationIndex] = pkm;
+                            save.SetBoxData(box, destinationBoxIndex);
+                            return true;
+                        }
+                    }
+                    break;
+
+                case PkmLocation.ServerFolder:
+                    // Get ext of pkm file
+                    string ext = pkm.Extension;
+                    string fileName = $"{pkmFileHash}{ext}";
+                    // Write file to temp
+                    byte[] partyData = new byte[pkm.SIZE_PARTY];
+                    pkm.WriteDecryptedDataParty(partyData);
+                    string hashString = await partyData.HashStringAsync(cancel).ConfigureAwait(false);
+                    await File.WriteAllBytesAsync(Path.Combine(TempFolderPath, fileName), partyData, cancel).ConfigureAwait(false);
+                    MoveWithBackup(Path.Combine(TempFolderPath, fileName), Path.Combine(PkmFolderPath, fileName), Path.Combine(PkmBackupFolderPath, fileName));
+                    return true;
+            }
+
+            return false;
         }
 
         /// <summary>
