@@ -212,15 +212,9 @@ namespace PKHeX.Rest.Services
         /// <param name="fileHash">The SHA256 hash of the PKM save file in the temp folder</param>
         /// <param name="cancel">The token allowing cancellation</param>
         /// <returns>The list of PKM as summarised data facets</returns>
-        public async Task<List<PkmDisplayFacet>> GetPartyPkmDisplayAsync(string fileHash, CancellationToken cancel = default)
+        public Task<List<PkmDisplayFacet>> GetPartyPkmDisplayAsync(string fileHash, CancellationToken cancel = default)
         {
-            if ((await TryRetrieveSaveFileAsync(fileHash, cancel).ConfigureAwait(false)).TryOut(out var save) && save?.HasParty == true)
-            {
-                return save.PartyData
-                    .SelectFacets<PkmDisplayFacet>()
-                    .ToList();
-            }
-            return [];
+            return GetPartyPkmAsync<PkmDisplayFacet>(fileHash, cancel);
         }
 
         /// <summary>
@@ -229,12 +223,23 @@ namespace PKHeX.Rest.Services
         /// <param name="fileHash">The SHA256 hash of the PKM save file in the temp folder</param>
         /// <param name="cancel">The token allowing cancellation</param>
         /// <returns>The list of PKM as full data facets</returns>
-        public async Task<List<PkmFacet>> GetPartyPkmDataAsync(string fileHash, CancellationToken cancel = default)
+        public Task<List<PkmFacet>> GetPartyPkmDataAsync(string fileHash, CancellationToken cancel = default)
+        {
+            return GetPartyPkmAsync<PkmFacet>(fileHash, cancel);
+        }
+
+        /// <summary>
+        /// Gets the party data as full facets.
+        /// </summary>
+        /// <param name="fileHash">The SHA256 hash of the PKM save file in the temp folder</param>
+        /// <param name="cancel">The token allowing cancellation</param>
+        /// <returns>The list of PKM as full data facets</returns>
+        private async Task<List<T>> GetPartyPkmAsync<T>(string fileHash, CancellationToken cancel = default) where T : class
         {
             if ((await TryRetrieveSaveFileAsync(fileHash, cancel).ConfigureAwait(false)).TryOut(out var save) && save?.HasParty == true)
             {
                 return save.PartyData
-                    .SelectFacets<PkmFacet>()
+                    .SelectFacets<T>()
                     .ToList();
             }
             return [];
@@ -559,6 +564,27 @@ namespace PKHeX.Rest.Services
             }
 
             return [];
+        }
+
+        public async Task<List<T>> GetBoxPkmAsync<T>(string fileHash, int boxIndex, CancellationToken cancel = default) where T : class
+        {
+            if ((await TryRetrieveSaveFileAsync(fileHash, cancel).ConfigureAwait(false)).TryOut(out var save) && save?.BoxCount > boxIndex)
+            {
+                return save.GetBoxData(boxIndex)
+                    .SelectFacets<T>()
+                    .ToList();
+            }
+            return [];
+        }
+
+        public Task<List<PkmDisplayFacet>> GetBoxPkmDisplayAsync(string fileHash, int boxIndex, CancellationToken cancel = default)
+        {
+            return GetBoxPkmAsync<PkmDisplayFacet>(fileHash, boxIndex, cancel);
+        }
+
+        public Task<List<PkmFacet>> GetBoxPkmDataAsync(string fileHash, int boxIndex, CancellationToken cancel = default)
+        {
+            return GetBoxPkmAsync<PkmFacet>(fileHash, boxIndex, cancel);
         }
 
         private static void MoveWithBackup(string sourceFilePath, string destinationFilePath, string backupFilePath)

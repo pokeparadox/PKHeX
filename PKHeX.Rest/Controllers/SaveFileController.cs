@@ -183,7 +183,7 @@ namespace PKHeX.Rest.Controllers
         [ProducesResponseType<List<PkmDisplayFacet>>(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [HttpGet("party/display/{fileHash}")]
+        [HttpGet("party/{fileHash}/display")]
         public async Task <ActionResult<List<PkmDisplayFacet>>> GetPartyPkmDisplayAsync([FromRoute] string fileHash, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(fileHash))
@@ -365,8 +365,8 @@ namespace PKHeX.Rest.Controllers
         [ProducesResponseType<List<List<string>>>(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [HttpPost("boxes/dump")]
-        public async Task<ActionResult<List<List<string>>>> DumpBoxesAsync([FromQuery] string fileHash, CancellationToken cancel = default)
+        [HttpPost("boxes/{fileHash}/dump")]
+        public async Task<ActionResult<List<List<string>>>> DumpBoxesAsync([FromRoute] string fileHash, CancellationToken cancel = default)
         {
             if (string.IsNullOrEmpty(fileHash))
             {
@@ -394,8 +394,8 @@ namespace PKHeX.Rest.Controllers
         [ProducesResponseType<List<string>>(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [HttpPost("boxes/{boxIndex:int}/dump")]
-        public async Task<ActionResult<List<string>>> DumpBoxAsync([FromRoute] int boxIndex, [FromQuery] string fileHash, CancellationToken cancel = default)
+        [HttpPost("boxes/{fileHash}/{boxIndex}/dump")]
+        public async Task<ActionResult<List<string>>> DumpBoxAsync([FromRoute] string fileHash, [FromRoute] int boxIndex, CancellationToken cancel = default)
         {
             if (string.IsNullOrEmpty(fileHash))
                 return BadRequest("fileHash is required");
@@ -410,6 +410,38 @@ namespace PKHeX.Rest.Controllers
             }
 
             return Ok(hashes);
+        }
+
+
+        /// <summary>
+        /// Gets the box PKM data with limited display information.
+        /// This endpoint returns summarized PKM data suitable for UI display (name, level, species, etc.).
+        /// </summary>
+        /// <param name="fileHash">The SHA256 hash of the save file returned from the upload endpoint</param>
+        /// <param name="index">The index within the PKM box.</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>A list of box PKM as display facets with limited information</returns>
+        /// <response code="200">Successfully retrieved box display data</response>
+        /// <response code="204">The box is empty</response>
+        /// <response code="400">The fileHash is missing or invalid</response>
+        [ProducesResponseType<List<PkmDisplayFacet>>(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [HttpGet("box/{fileHash}/{index}/display")]
+        public async Task <ActionResult<List<PkmDisplayFacet>>> GetBoxPkmDisplayAsync([FromRoute] string fileHash, [FromRoute] int index, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrEmpty(fileHash))
+            {
+                return BadRequest("fileHash is required");
+            }
+
+            var partyData = await saveFileService.GetBoxPkmDisplayAsync(fileHash, index, cancellationToken).ConfigureAwait(false);
+            if (!partyData.Any())
+            {
+                return NoContent();
+            }
+
+            return Ok(partyData);
         }
     }
 }
